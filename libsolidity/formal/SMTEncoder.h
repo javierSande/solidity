@@ -437,7 +437,11 @@ protected:
 
 	/// Whether the currently visited block uses checked
 	/// or unchecked arithmetic.
-	bool m_checked = true;
+	bool m_checkedArithmetic = true;
+
+		/// Whether the currently visited block uses checked
+	/// or unchecked array accesses.
+	bool m_checkedArrayAccess = true;
 
 	langutil::UniqueErrorReporter& m_errorReporter;
 

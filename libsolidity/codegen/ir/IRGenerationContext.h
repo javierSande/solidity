@@ -154,6 +154,10 @@ public:
 	void setArithmetic(Arithmetic _value) { m_arithmetic = _value; }
 	Arithmetic arithmetic() const { return m_arithmetic; }
 
+	void setArrayAccess(ArrayAccess _value) { m_arrayAccess = _value; }
+	ArrayAccess arrayAccess() const { return m_arrayAccess; }
+	bool uncheckedArrays() const { return m_arrayAccess == ArrayAccess::Unchecked; }
+
 	ABIFunctions abiFunctions();
 
 	RevertStrings revertStrings() const { return m_revertStrings; }
@@ -201,6 +205,8 @@ private:
 	size_t m_varCounter = 0;
 	/// Whether to use checked or wrapping arithmetic.
 	Arithmetic m_arithmetic = Arithmetic::Checked;
+	/// Whether to use checked array index accesses.
+	ArrayAccess m_arrayAccess = ArrayAccess::Checked;
 
 	/// Flag indicating whether any memory-unsafe inline assembly block was seen.
 	bool m_memoryUnsafeInlineAssemblySeen = false;

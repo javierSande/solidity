@@ -2155,7 +2155,8 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 			solAssert(_indexAccess.indexExpression(), "Index expression expected.");
 
 			acceptAndConvert(*_indexAccess.indexExpression(), *TypeProvider::uint256(), true);
-			ArrayUtils(m_context).accessCallDataArrayElement(arrayType);
+			bool checkAccess = !m_context.uncheckedArrays();
+			ArrayUtils(m_context).accessCallDataArrayElement(arrayType, checkAccess);
 			break;
 
 		}
@@ -2165,11 +2166,13 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 			solAssert(_indexAccess.indexExpression(), "Index expression expected.");
 
 			acceptAndConvert(*_indexAccess.indexExpression(), *TypeProvider::uint256(), true);
+			bool checkAccess = true;
 			// stack layout: <base_ref> [<length>] <index>
 			switch (arrayType.location())
 			{
 				case DataLocation::Storage:
-					ArrayUtils(m_context).accessIndex(arrayType);
+					checkAccess = !m_context.uncheckedArrays();
+					ArrayUtils(m_context).accessIndex(arrayType, checkAccess);
 					if (arrayType.isByteArrayOrString())
 					{
 						solAssert(!arrayType.isString(), "Index access to string is not allowed.");
@@ -2179,11 +2182,13 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 						setLValueToStorageItem(_indexAccess);
 					break;
 				case DataLocation::Memory:
-					ArrayUtils(m_context).accessIndex(arrayType);
+					checkAccess = !m_context.uncheckedArrays();
+					ArrayUtils(m_context).accessIndex(arrayType, checkAccess);
 					setLValue<MemoryItem>(_indexAccess, *_indexAccess.annotation().type, !arrayType.isByteArrayOrString());
 					break;
 				case DataLocation::CallData:
-					ArrayUtils(m_context).accessCallDataArrayElement(arrayType);
+					checkAccess = !m_context.uncheckedArrays();
+					ArrayUtils(m_context).accessCallDataArrayElement(arrayType, checkAccess);
 					break;
 			}
 			break;

@@ -2331,6 +2331,34 @@ string YulUtilFunctions::storageArrayIndexAccessFunction(ArrayType const& _type)
 	});
 }
 
+string YulUtilFunctions::storageUncheckedArrayIndexAccessFunction(ArrayType const& _type)
+{
+	solAssert(!_type.isByteArrayOrString(), "");
+	string functionName = "storage_array_index_access_no_checks_" + _type.identifier();
+	return m_functionCollector.createFunction(functionName, [&]() {
+		return Whiskers(R"(
+			function <functionName>(array, index) -> slot, offset {
+				<?multipleItemsPerSlot>
+					let dataArea := <dataAreaFunc>(array)
+					slot := add(dataArea, div(index, <itemsPerSlot>))
+					offset := mul(mod(index, <itemsPerSlot>), <storageBytes>)
+				<!multipleItemsPerSlot>
+					let dataArea := <dataAreaFunc>(array)
+					slot := add(dataArea, mul(index, <storageSize>))
+					offset := 0
+				</multipleItemsPerSlot>
+			}
+		)")
+		("functionName", functionName)
+		("dataAreaFunc", arrayDataAreaFunction(_type))
+		("multipleItemsPerSlot", _type.baseType()->storageBytes() <= 16)
+		("storageSize", _type.baseType()->storageSize().str())
+		("storageBytes", toString(_type.baseType()->storageBytes()))
+		("itemsPerSlot", to_string(32 / _type.baseType()->storageBytes()))
+		.render();
+	});
+}
+
 string YulUtilFunctions::memoryArrayIndexAccessFunction(ArrayType const& _type)
 {
 	string functionName = "memory_array_index_access_" + _type.identifier();
@@ -2351,6 +2379,26 @@ string YulUtilFunctions::memoryArrayIndexAccessFunction(ArrayType const& _type)
 		("functionName", functionName)
 		("panic", panicFunction(PanicCode::ArrayOutOfBounds))
 		("arrayLen", arrayLengthFunction(_type))
+		("stride", to_string(_type.memoryStride()))
+		("dynamicallySized", _type.isDynamicallySized())
+		.render();
+	});
+}
+
+string YulUtilFunctions::memoryUncheckedArrayIndexAccessFunction(ArrayType const& _type)
+{
+	string functionName = "memory_array_index_access_no_checks_" + _type.identifier();
+	return m_functionCollector.createFunction(functionName, [&]() {
+		return Whiskers(R"(
+			function <functionName>(baseRef, index) -> addr {
+				let offset := mul(index, <stride>)
+				<?dynamicallySized>
+					offset := add(offset, 32)
+				</dynamicallySized>
+				addr := add(baseRef, offset)
+			}
+		)")
+		("functionName", functionName)
 		("stride", to_string(_type.memoryStride()))
 		("dynamicallySized", _type.isDynamicallySized())
 		.render();
@@ -2378,6 +2426,29 @@ string YulUtilFunctions::calldataArrayIndexAccessFunction(ArrayType const& _type
 		("dynamicallyEncodedBase", _type.baseType()->isDynamicallyEncoded())
 		("dynamicallySizedBase", _type.baseType()->isDynamicallySized())
 		("arrayLen",  toCompactHexWithPrefix(_type.length()))
+		("accessCalldataTail", _type.baseType()->isDynamicallyEncoded() ? accessCalldataTailFunction(*_type.baseType()): "")
+		.render();
+	});
+}
+
+string YulUtilFunctions::calldataUncheckedArrayIndexAccessFunction(ArrayType const& _type)
+{
+	solAssert(_type.dataStoredIn(DataLocation::CallData), "");
+	string functionName = "calldata_array_index_access_no_checks_" + _type.identifier();
+	return m_functionCollector.createFunction(functionName, [&]() {
+		return Whiskers(R"(
+			function <functionName>(base_ref<?dynamicallySized>, length</dynamicallySized>, index) -> addr<?dynamicallySizedBase>, len</dynamicallySizedBase> {
+				addr := add(base_ref, mul(index, <stride>))
+				<?dynamicallyEncodedBase>
+					addr<?dynamicallySizedBase>, len</dynamicallySizedBase> := <accessCalldataTail>(base_ref, addr)
+				</dynamicallyEncodedBase>
+			}
+		)")
+		("functionName", functionName)
+		("stride", to_string(_type.calldataStride()))
+		("dynamicallySized", _type.isDynamicallySized())
+		("dynamicallyEncodedBase", _type.baseType()->isDynamicallyEncoded())
+		("dynamicallySizedBase", _type.baseType()->isDynamicallySized())
 		("accessCalldataTail", _type.baseType()->isDynamicallyEncoded() ? accessCalldataTailFunction(*_type.baseType()): "")
 		.render();
 	});

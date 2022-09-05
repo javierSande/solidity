@@ -434,9 +434,10 @@ numberLiteral: (DecimalNumber | HexNumber) NumberUnit?;
  * A curly-braced block of statements. Opens its own scope.
  */
 block:
-	LBrace ( statement | uncheckedBlock )* RBrace;
+	LBrace ( statement | uncheckedBlock | uncheckedArrayBlock )* RBrace;
 
 uncheckedBlock: Unchecked block;
+uncheckedArrayBlock: UncheckedArray block;
 
 statement:
 	block

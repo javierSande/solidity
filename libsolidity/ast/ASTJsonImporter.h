@@ -101,7 +101,7 @@ private:
 	ASTPointer<Mapping> createMapping(Json::Value const& _node);
 	ASTPointer<ArrayTypeName> createArrayTypeName(Json::Value const& _node);
 	ASTPointer<InlineAssembly> createInlineAssembly(Json::Value const& _node);
-	ASTPointer<Block> createBlock(Json::Value const& _node, bool _unchecked);
+	ASTPointer<Block> createBlock(Json::Value const& _node, bool _unchecked, bool _uncheckedArray);
 	ASTPointer<PlaceholderStatement> createPlaceholderStatement(Json::Value const& _node);
 	ASTPointer<IfStatement> createIfStatement(Json::Value const& _node);
 	ASTPointer<TryCatchClause> createTryCatchClause(Json::Value const& _node);

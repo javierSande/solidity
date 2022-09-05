@@ -1258,15 +1258,24 @@ ASTPointer<ParameterList> Parser::parseParameterList(
 	return nodeFactory.createNode<ParameterList>(parameters);
 }
 
-ASTPointer<Block> Parser::parseBlock(bool _allowUnchecked, ASTPointer<ASTString> const& _docString)
+ASTPointer<Block> Parser::parseBlock(bool _allowUncheckedBlock, bool _allowUncheckedArrayBlock, ASTPointer<ASTString> const& _docString)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory(*this);
-	bool const unchecked = m_scanner->currentToken() == Token::Unchecked;
-	if (unchecked)
+	bool const uncheckedArrayBlock = m_scanner->currentToken() == Token::UncheckedArray;
+	bool const uncheckedBlock = m_scanner->currentToken() == Token::Unchecked;
+
+	if (uncheckedBlock)
 	{
-		if (!_allowUnchecked)
+		if (!_allowUncheckedBlock)
 			parserError(5296_error, "\"unchecked\" blocks can only be used inside regular blocks.");
+		advance();
+	}
+
+	if (uncheckedArrayBlock)
+	{
+		if (!_allowUncheckedArrayBlock)
+			parserError(5297_error, "\"uncheckedArray\" blocks can only be used inside regular blocks.");
 		advance();
 	}
 	expectToken(Token::LBrace);
@@ -1274,7 +1283,7 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUnchecked, ASTPointer<ASTString>
 	try
 	{
 		while (m_scanner->currentToken() != Token::RBrace)
-			statements.push_back(parseStatement(true));
+			statements.push_back(parseStatement(true, true));
 		nodeFactory.markEndPosition();
 	}
 	catch (FatalError const&)
@@ -1291,10 +1300,10 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUnchecked, ASTPointer<ASTString>
 		expectTokenOrConsumeUntil(Token::RBrace, "Block");
 	else
 		expectToken(Token::RBrace);
-	return nodeFactory.createNode<Block>(_docString, unchecked, statements);
+	return nodeFactory.createNode<Block>(_docString, uncheckedBlock, uncheckedArrayBlock, statements);
 }
 
-ASTPointer<Statement> Parser::parseStatement(bool _allowUnchecked)
+ASTPointer<Statement> Parser::parseStatement(bool _allowUnchecked, bool _allowUncheckedArray)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTPointer<ASTString> docString;
@@ -1314,8 +1323,9 @@ ASTPointer<Statement> Parser::parseStatement(bool _allowUnchecked)
 		case Token::For:
 			return parseForStatement(docString);
 		case Token::Unchecked:
+		case Token::UncheckedArray:
 		case Token::LBrace:
-			return parseBlock(_allowUnchecked, docString);
+			return parseBlock(_allowUnchecked, _allowUncheckedArray, docString);
 		case Token::Continue:
 			statement = ASTNodeFactory(*this).createNode<Continue>(docString);
 			advance();

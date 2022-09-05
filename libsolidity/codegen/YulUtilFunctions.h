@@ -284,16 +284,34 @@ public:
 	/// signature: (array, index) -> slot, offset
 	std::string storageArrayIndexAccessFunction(ArrayType const& _type);
 
+	/// @returns the name of a function that returns the slot and offset for the
+	/// given array and index
+	/// Does not check out of range access.
+	/// signature: (array, index) -> slot, offset
+	std::string storageUncheckedArrayIndexAccessFunction(ArrayType const& _type);
+
 	/// @returns the name of a function that returns the memory address for the
 	/// given array base ref and index.
 	/// Causes invalid opcode on out of range access.
 	/// signature: (baseRef, index) -> address
 	std::string memoryArrayIndexAccessFunction(ArrayType const& _type);
 
+	/// @returns the name of a function that returns the memory address for the
+	/// given array base ref and index.
+	/// Does not check out of range access.
+	/// signature: (baseRef, index) -> address
+	std::string memoryUncheckedArrayIndexAccessFunction(ArrayType const& _type);
+
 	/// @returns the name of a function that returns the calldata address for the
 	/// given array base ref and index.
 	/// signature: (baseRef, index) -> offset[, length]
 	std::string calldataArrayIndexAccessFunction(ArrayType const& _type);
+
+	/// @returns the name of a function that returns the calldata address for the
+	/// given array base ref and index.
+	/// Does not check out of range access.
+	/// signature: (baseRef, index) -> offset[, length]
+	std::string calldataUncheckedArrayIndexAccessFunction(ArrayType const& _type);
 
 	/// @returns the name of a function that returns offset and length for array slice
 	/// for the given array offset, length and start and end indices for slice
