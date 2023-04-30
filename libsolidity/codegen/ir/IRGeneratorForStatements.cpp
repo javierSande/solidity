@@ -570,10 +570,15 @@ bool IRGeneratorForStatements::visit(Block const& _block)
 		solAssert(m_context.arithmetic() == Arithmetic::Checked);
 		m_context.setArithmetic(Arithmetic::Wrapping);
 	}
-	if (_block.uncheckedArrays())
+	if (_block.uncheckedAllArrays())
 	{
 		solAssert(m_context.arrayAccess() == ArrayAccess::Checked);
 		m_context.setArrayAccess(ArrayAccess::Unchecked);
+	}
+	else if (_block.uncheckedArrays())
+	{
+		solAssert(m_context.arrayAccess() == ArrayAccess::Checked);
+		m_context.setUncheckedArrays(_block.uncheckedArraysSet());
 	}
 	return true;
 }
@@ -587,8 +592,16 @@ void IRGeneratorForStatements::endVisit(Block const& _block)
 	}
 	if (_block.uncheckedArrays())
 	{
-		solAssert(m_context.arrayAccess() == ArrayAccess::Unchecked, "");
-		m_context.setArrayAccess(ArrayAccess::Checked);
+		if (_block.uncheckedAllArrays())
+		{
+			solAssert(m_context.arrayAccess() == ArrayAccess::Unchecked, "");
+			m_context.setArrayAccess(ArrayAccess::Checked);
+		}
+		else
+		{
+			solAssert(m_context.arrayAccess() == ArrayAccess::Checked, "");
+		}
+		m_context.setUncheckedArrays({});
 	}
 }
 
@@ -2278,15 +2291,16 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 
 		solAssert(_indexAccess.indexExpression(), "Index expression expected.");
 
+		Expression const& baseExpression = _indexAccess.baseExpression();
+
 		switch (arrayType.location())
 		{
 			case DataLocation::Storage:
 			{
 				string slot = m_context.newYulVariable();
 				string offset = m_context.newYulVariable();
-				Expression const& baseExpression = _indexAccess.baseExpression();
 
-				if (m_context.uncheckedArrays())
+				if (m_context.isArrayUnchecked(&baseExpression))
 				{
 					appendCode() << Whiskers(R"(
 					let <slot>, <offset> := <indexFunc>(<array>, <index>)
@@ -2320,9 +2334,8 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 			}
 			case DataLocation::Memory:
 			{
-				Expression const& baseExpression = _indexAccess.baseExpression();
 
-				if (m_context.uncheckedArrays())
+				if (m_context.isArrayUnchecked(&baseExpression))
 				{
 					string const memAddress =
 						m_utils.memoryUncheckedArrayIndexAccessFunction(arrayType)+
@@ -2356,7 +2369,7 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 			}
 			case DataLocation::CallData:
 			{
-				string indexAccessFunction = m_context.uncheckedArrays() ?
+				string indexAccessFunction = m_context.isArrayUnchecked(&baseExpression) ?
 				 m_utils.calldataUncheckedArrayIndexAccessFunction(arrayType) : m_utils.calldataArrayIndexAccessFunction(arrayType);
 				string const indexAccessFunctionCall =
 					indexAccessFunction +

@@ -437,7 +437,8 @@ block:
 	LBrace ( statement | uncheckedBlock | uncheckedArrayBlock )* RBrace;
 
 uncheckedBlock: Unchecked block;
-uncheckedArrayBlock: UncheckedArray block;
+uncheckedArrayBlock:
+	UncheckedArray block | UncheckedArray LParen (expression? ( Comma expression?)* ) RParen block;
 
 statement:
 	block

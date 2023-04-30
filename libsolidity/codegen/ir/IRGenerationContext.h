@@ -83,6 +83,7 @@ public:
 		m_revertStrings(_revertStrings),
 		m_optimiserSettings(std::move(_optimiserSettings)),
 		m_sourceIndices(std::move(_sourceIndices)),
+		m_uncheckedArrays(),
 		m_debugInfoSelection(_debugInfoSelection),
 		m_soliditySourceProvider(_soliditySourceProvider)
 	{}
@@ -155,8 +156,22 @@ public:
 	Arithmetic arithmetic() const { return m_arithmetic; }
 
 	void setArrayAccess(ArrayAccess _value) { m_arrayAccess = _value; }
+	void setUncheckedArrays(std::vector<ASTPointer<Expression>> _uncheckedArrays) { m_uncheckedArrays = std::move(_uncheckedArrays); }
 	ArrayAccess arrayAccess() const { return m_arrayAccess; }
-	bool uncheckedArrays() const { return m_arrayAccess == ArrayAccess::Unchecked; }
+	bool uncheckedBlock() const { return m_arrayAccess == ArrayAccess::Unchecked || !m_uncheckedArrays.empty(); }
+	bool isArrayUnchecked(Expression const* _arrayBase)  const {
+		if (m_arrayAccess == ArrayAccess::Unchecked)
+			return true;
+
+		for (ASTPointer<Expression> const& arrayBase: m_uncheckedArrays)
+		{
+			if (_arrayBase->nodeToString() == arrayBase->nodeToString())
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	ABIFunctions abiFunctions();
 
@@ -207,6 +222,7 @@ private:
 	Arithmetic m_arithmetic = Arithmetic::Checked;
 	/// Whether to use checked array index accesses.
 	ArrayAccess m_arrayAccess = ArrayAccess::Checked;
+	std::vector<ASTPointer<Expression>> m_uncheckedArrays;
 
 	/// Flag indicating whether any memory-unsafe inline assembly block was seen.
 	bool m_memoryUnsafeInlineAssemblySeen = false;

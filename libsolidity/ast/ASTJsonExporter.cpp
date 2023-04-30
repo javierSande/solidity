@@ -679,9 +679,17 @@ bool ASTJsonExporter::visit(Block const& _node)
 	}
 	else if (_node.uncheckedArrays())
 	{
-		setJsonNode(_node, "UncheckedArrayBlock", {
-			make_pair("statements", toJson(_node.statements()))
-		});
+			if (_node.uncheckedAllArrays())
+			{
+				setJsonNode(_node, "UncheckedArrayBlock", {
+					make_pair("statements", toJson(_node.statements()))
+				});
+			} else {
+				setJsonNode(_node, "UncheckedArrayBlock", {
+					make_pair("statements", toJson(_node.statements())),
+					make_pair("uncheckedArrays", toJson(_node.uncheckedArraysSet()))
+				});
+			}
 	}
 	else
 	{

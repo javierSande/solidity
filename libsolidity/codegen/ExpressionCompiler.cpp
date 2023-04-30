@@ -2107,6 +2107,7 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 	_indexAccess.baseExpression().accept(*this);
 
 	Type const& baseType = *_indexAccess.baseExpression().annotation().type;
+	Expression const*  baseExpression = &(_indexAccess.baseExpression());
 
 	switch (baseType.category())
 	{
@@ -2155,7 +2156,7 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 			solAssert(_indexAccess.indexExpression(), "Index expression expected.");
 
 			acceptAndConvert(*_indexAccess.indexExpression(), *TypeProvider::uint256(), true);
-			bool checkAccess = !m_context.uncheckedArrays();
+			bool checkAccess = !m_context.isArrayUnchecked(baseExpression);
 			ArrayUtils(m_context).accessCallDataArrayElement(arrayType, checkAccess);
 			break;
 
@@ -2171,7 +2172,7 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 			switch (arrayType.location())
 			{
 				case DataLocation::Storage:
-					checkAccess = !m_context.uncheckedArrays();
+					checkAccess = !m_context.isArrayUnchecked(baseExpression);
 					ArrayUtils(m_context).accessIndex(arrayType, checkAccess);
 					if (arrayType.isByteArrayOrString())
 					{
@@ -2182,12 +2183,12 @@ bool ExpressionCompiler::visit(IndexAccess const& _indexAccess)
 						setLValueToStorageItem(_indexAccess);
 					break;
 				case DataLocation::Memory:
-					checkAccess = !m_context.uncheckedArrays();
+					checkAccess = !m_context.isArrayUnchecked(baseExpression);
 					ArrayUtils(m_context).accessIndex(arrayType, checkAccess);
 					setLValue<MemoryItem>(_indexAccess, *_indexAccess.annotation().type, !arrayType.isByteArrayOrString());
 					break;
 				case DataLocation::CallData:
-					checkAccess = !m_context.uncheckedArrays();
+					checkAccess = !m_context.isArrayUnchecked(baseExpression);
 					ArrayUtils(m_context).accessCallDataArrayElement(arrayType, checkAccess);
 					break;
 			}

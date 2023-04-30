@@ -1265,6 +1265,9 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUncheckedBlock, bool _allowUnche
 	bool const uncheckedArrayBlock = m_scanner->currentToken() == Token::UncheckedArray;
 	bool const uncheckedBlock = m_scanner->currentToken() == Token::Unchecked;
 
+	std::vector<ASTPointer<Expression>> uncheckedArrays;
+	bool uncheckedAllArrays = uncheckedArrayBlock;
+
 	if (uncheckedBlock)
 	{
 		if (!_allowUncheckedBlock)
@@ -1277,6 +1280,15 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUncheckedBlock, bool _allowUnche
 		if (!_allowUncheckedArrayBlock)
 			parserError(5297_error, "\"uncheckedArray\" blocks can only be used inside regular blocks.");
 		advance();
+
+		if (m_scanner->currentToken() == Token::LParen)
+		{
+			advance();
+			uncheckedAllArrays = false;
+			uncheckedArrays = parseFunctionCallListArguments();
+			expectToken(Token::RParen);
+		}
+
 	}
 	expectToken(Token::LBrace);
 	vector<ASTPointer<Statement>> statements;
@@ -1300,7 +1312,7 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUncheckedBlock, bool _allowUnche
 		expectTokenOrConsumeUntil(Token::RBrace, "Block");
 	else
 		expectToken(Token::RBrace);
-	return nodeFactory.createNode<Block>(_docString, uncheckedBlock, uncheckedArrayBlock, statements);
+	return nodeFactory.createNode<Block>(_docString, uncheckedBlock, uncheckedAllArrays, statements, uncheckedArrays);
 }
 
 ASTPointer<Statement> Parser::parseStatement(bool _allowUnchecked, bool _allowUncheckedArray)

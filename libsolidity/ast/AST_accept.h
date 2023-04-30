@@ -517,14 +517,20 @@ void InlineAssembly::accept(ASTConstVisitor& _visitor) const
 void Block::accept(ASTVisitor& _visitor)
 {
 	if (_visitor.visit(*this))
+	{
 		listAccept(m_statements, _visitor);
+		listAccept(m_uncheckedArrays, _visitor);
+	}
 	_visitor.endVisit(*this);
 }
 
 void Block::accept(ASTConstVisitor& _visitor) const
 {
 	if (_visitor.visit(*this))
+	{
 		listAccept(m_statements, _visitor);
+		listAccept(m_uncheckedArrays, _visitor);
+	}
 	_visitor.endVisit(*this);
 }
 

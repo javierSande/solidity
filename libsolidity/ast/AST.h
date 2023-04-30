@@ -830,6 +830,8 @@ public:
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
 
+	ASTString const nodeToString() const;
+
 	std::vector<ASTPointer<VariableDeclaration>> const& parameters() const { return m_parameters; }
 
 private:
@@ -1022,6 +1024,17 @@ class VariableDeclaration: public Declaration, public StructurallyDocumented
 {
 public:
 	enum Location { Unspecified, Storage, Memory, CallData };
+	static std::string locationToString(Location _location)
+	{
+		switch (_location)
+		{
+		case Location::Unspecified: return "";
+		case Location::Storage: return "storage";
+		case Location::Memory: return "memory";
+		case Location::CallData: return "calldata";
+		}
+		return {};
+	}
 	enum class Mutability { Mutable, Immutable, Constant };
 	static std::string mutabilityToString(Mutability _mutability)
 	{
@@ -1063,6 +1076,8 @@ public:
 
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const;
 
 	TypeName const& typeName() const { return *m_typeName; }
 	ASTPointer<Expression> const& value() const { return m_value; }
@@ -1341,6 +1356,7 @@ protected:
 
 public:
 	TypeNameAnnotation& annotation() const override;
+	virtual ASTString const nodeToString() const { return ""; }
 };
 
 /**
@@ -1362,6 +1378,8 @@ public:
 
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	ElementaryTypeNameToken const& typeName() const { return m_type; }
 
@@ -1385,6 +1403,8 @@ public:
 	}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	std::vector<ASTString> const& namePath() const { return m_namePath->path(); }
 	IdentifierPath& pathNode() const { return *m_namePath; }
@@ -1412,6 +1432,8 @@ public:
 	{}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	std::vector<ASTPointer<VariableDeclaration>> const& parameterTypes() const { return m_parameterTypes->parameters(); }
 	std::vector<ASTPointer<VariableDeclaration>> const& returnParameterTypes() const { return m_returnTypes->parameters(); }
@@ -1459,6 +1481,8 @@ public:
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
 
+	ASTString const nodeToString() const override;
+
 	TypeName const& keyType() const { return *m_keyType; }
 	ASTString keyName() const { return *m_keyName; }
 	SourceLocation keyNameLocation() const { return m_keyNameLocation; }
@@ -1490,6 +1514,8 @@ public:
 		TypeName(_id, _location), m_baseType(std::move(_baseType)), m_length(std::move(_length)) {}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	TypeName const& baseType() const { return *m_baseType; }
 	Expression const* length() const { return m_length.get(); }
@@ -1565,27 +1591,32 @@ public:
 		SourceLocation const& _location,
 		ASTPointer<ASTString> const& _docString,
 		bool _uncheckedArithmetic,
-		bool _uncheckedArrays,
-		std::vector<ASTPointer<Statement>> _statements
+		bool _uncheckedAllArrays,
+		std::vector<ASTPointer<Statement>> _statements,
+		std::vector<ASTPointer<Expression>> _uncheckedArrays
 	):
 		Statement(_id, _location, _docString),
 		m_statements(std::move(_statements)),
+		m_uncheckedArrays(std::move(_uncheckedArrays)),
 		m_uncheckedArithmetic(_uncheckedArithmetic),
-		m_uncheckedArrays(_uncheckedArrays)
+		m_uncheckedAllArrays(_uncheckedAllArrays)
 	{}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
 
 	std::vector<ASTPointer<Statement>> const& statements() const { return m_statements; }
+	std::vector<ASTPointer<Expression>> const& uncheckedArraysSet() const { return m_uncheckedArrays; }
 	bool uncheckedArithmetic() const { return m_uncheckedArithmetic; }
-	bool uncheckedArrays() const { return m_uncheckedArrays; }
+	bool uncheckedAllArrays() const { return m_uncheckedAllArrays; }
+	bool uncheckedArrays() const { return m_uncheckedAllArrays || !m_uncheckedArrays.empty(); }
 
 	BlockAnnotation& annotation() const override;
 
 private:
 	std::vector<ASTPointer<Statement>> m_statements;
+	std::vector<ASTPointer<Expression>> m_uncheckedArrays;
 	bool m_uncheckedArithmetic;
-	bool m_uncheckedArrays;
+	bool m_uncheckedAllArrays;
 };
 
 /**
@@ -1971,6 +2002,7 @@ public:
 	explicit Expression(int64_t _id, SourceLocation const& _location): ASTNode(_id, _location) {}
 
 	ExpressionAnnotation& annotation() const override;
+	virtual ASTString const nodeToString() const { return ""; }
 };
 
 class Conditional: public Expression
@@ -1990,6 +2022,8 @@ public:
 	{}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	Expression const& condition() const { return *m_condition; }
 	Expression const& trueExpression() const { return *m_trueExpression; }
@@ -2022,6 +2056,8 @@ public:
 	}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	Expression const& leftHandSide() const { return *m_leftHandSide; }
 	Token assignmentOperator() const { return m_assigmentOperator; }
@@ -2056,6 +2092,8 @@ public:
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
 
+	ASTString const nodeToString() const override;
+
 	std::vector<ASTPointer<Expression>> const& components() const { return m_components; }
 	bool isInlineArray() const { return m_isArray; }
 
@@ -2087,6 +2125,8 @@ public:
 	}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	Token getOperator() const { return m_operator; }
 	bool isPrefixOperation() const { return m_isPrefix; }
@@ -2122,6 +2162,8 @@ public:
 	}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	Expression const& leftExpression() const { return *m_left; }
 	Expression const& rightExpression() const { return *m_right; }
@@ -2172,6 +2214,8 @@ public:
 
 	FunctionCallAnnotation& annotation() const override;
 
+	ASTString const nodeToString() const override;
+
 private:
 	ASTPointer<Expression> m_expression;
 	std::vector<ASTPointer<Expression>> m_arguments;
@@ -2196,6 +2240,8 @@ public:
 		Expression(_id, _location), m_expression(std::move(_expression)), m_options(std::move(_options)), m_names(std::move(_names)) {}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	Expression const& expression() const { return *m_expression; }
 	std::vector<ASTPointer<Expression const>> options() const { return {m_options.begin(), m_options.end()}; }
@@ -2223,6 +2269,8 @@ public:
 		Expression(_id, _location), m_typeName(std::move(_typeName)) {}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	TypeName const& typeName() const { return *m_typeName; }
 
@@ -2257,6 +2305,8 @@ public:
 
 	MemberAccessAnnotation& annotation() const override;
 
+	ASTString const nodeToString() const override;
+
 private:
 	ASTPointer<Expression> m_expression;
 	ASTPointer<ASTString> m_memberName;
@@ -2278,6 +2328,8 @@ public:
 		Expression(_id, _location), m_base(std::move(_base)), m_index(std::move(_index)) {}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	Expression const& baseExpression() const { return *m_base; }
 	Expression const* indexExpression() const { return m_index.get(); }
@@ -2304,6 +2356,8 @@ public:
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
 
+	ASTString const nodeToString() const override;
+
 	Expression const& baseExpression() const { return *m_base; }
 	Expression const* startExpression() const { return m_start.get(); }
 	Expression const* endExpression() const { return m_end.get(); }
@@ -2322,6 +2376,8 @@ class PrimaryExpression: public Expression
 {
 public:
 	PrimaryExpression(int64_t _id, SourceLocation const& _location): Expression(_id, _location) {}
+
+	virtual ASTString const nodeToString() const override { return ""; }
 };
 
 /**
@@ -2342,6 +2398,8 @@ public:
 	ASTString const& name() const { return *m_name; }
 
 	IdentifierAnnotation& annotation() const override;
+
+	ASTString const nodeToString() const override;
 
 private:
 	ASTPointer<ASTString> m_name;
@@ -2366,6 +2424,8 @@ public:
 	}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
+
+	ASTString const nodeToString() const override;
 
 	ElementaryTypeName const& type() const { return *m_type; }
 
@@ -2406,6 +2466,8 @@ public:
 	Token token() const { return m_token; }
 	/// @returns the non-parsed value of the literal
 	ASTString const& value() const { return *m_value; }
+
+	ASTString const nodeToString() const override;
 
 	ASTString valueWithoutUnderscores() const;
 
