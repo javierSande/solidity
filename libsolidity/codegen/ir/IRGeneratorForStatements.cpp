@@ -565,20 +565,30 @@ bool IRGeneratorForStatements::visit(TupleExpression const& _tuple)
 
 bool IRGeneratorForStatements::visit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
 		solAssert(m_context.arithmetic() == Arithmetic::Checked);
 		m_context.setArithmetic(Arithmetic::Wrapping);
+	}
+	if (_block.uncheckedArrays())
+	{
+		solAssert(m_context.arrayAccess() == ArrayAccess::Checked);
+		m_context.setArrayAccess(ArrayAccess::Unchecked);
 	}
 	return true;
 }
 
 void IRGeneratorForStatements::endVisit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
 		solAssert(m_context.arithmetic() == Arithmetic::Wrapping);
 		m_context.setArithmetic(Arithmetic::Checked);
+	}
+	if (_block.uncheckedArrays())
+	{
+		solAssert(m_context.arrayAccess() == ArrayAccess::Unchecked, "");
+		m_context.setArrayAccess(ArrayAccess::Checked);
 	}
 }
 
@@ -2229,7 +2239,6 @@ bool IRGeneratorForStatements::visit(InlineAssembly const& _inlineAsm)
 	return false;
 }
 
-
 void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 {
 	setLocation(_indexAccess);
@@ -2275,16 +2284,32 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 			{
 				string slot = m_context.newYulVariable();
 				string offset = m_context.newYulVariable();
+				Expression const& baseExpression = _indexAccess.baseExpression();
 
-				appendCode() << Whiskers(R"(
+				if (m_context.uncheckedArrays())
+				{
+					appendCode() << Whiskers(R"(
 					let <slot>, <offset> := <indexFunc>(<array>, <index>)
-				)")
-				("slot", slot)
-				("offset", offset)
-				("indexFunc", m_utils.storageArrayIndexAccessFunction(arrayType))
-				("array", IRVariable(_indexAccess.baseExpression()).part("slot").name())
-				("index", IRVariable(*_indexAccess.indexExpression()).name())
-				.render();
+					)")
+					("slot", slot)
+					("offset", offset)
+					("indexFunc", m_utils.storageUncheckedArrayIndexAccessFunction(arrayType))
+					("array", IRVariable(baseExpression).part("slot").name())
+					("index", IRVariable(*_indexAccess.indexExpression()).name())
+					.render();
+				}
+				else
+				{
+					appendCode() << Whiskers(R"(
+					let <slot>, <offset> := <indexFunc>(<array>, <index>)
+					)")
+					("slot", slot)
+					("offset", offset)
+					("indexFunc", m_utils.storageArrayIndexAccessFunction(arrayType))
+					("array", IRVariable(baseExpression).part("slot").name())
+					("index", IRVariable(*_indexAccess.indexExpression()).name())
+					.render();
+				}
 
 				setLValue(_indexAccess, IRLValue{
 					*_indexAccess.annotation().type,
@@ -2295,23 +2320,44 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 			}
 			case DataLocation::Memory:
 			{
-				string const memAddress =
-					m_utils.memoryArrayIndexAccessFunction(arrayType) +
-					"(" +
-					IRVariable(_indexAccess.baseExpression()).part("mpos").name() +
-					", " +
-					expressionAsType(*_indexAccess.indexExpression(), *TypeProvider::uint256()) +
-					")";
+				Expression const& baseExpression = _indexAccess.baseExpression();
 
-				setLValue(_indexAccess, IRLValue{
-					*arrayType.baseType(),
-					IRLValue::Memory{memAddress, arrayType.isByteArrayOrString()}
-				});
+				if (m_context.uncheckedArrays())
+				{
+					string const memAddress =
+						m_utils.memoryUncheckedArrayIndexAccessFunction(arrayType)+
+						"(" +
+						IRVariable(baseExpression).part("mpos").name() +
+						", " +
+						expressionAsType(*_indexAccess.indexExpression(), *TypeProvider::uint256()) +
+						")";
+
+					setLValue(_indexAccess, IRLValue{
+						*arrayType.baseType(),
+						IRLValue::Memory{memAddress, arrayType.isByteArrayOrString()}
+					});
+				}
+				else
+				{
+					string const memAddress =
+						m_utils.memoryArrayIndexAccessFunction(arrayType) +
+						"(" +
+						IRVariable(baseExpression).part("mpos").name() +
+						", " +
+						expressionAsType(*_indexAccess.indexExpression(), *TypeProvider::uint256()) +
+						")";
+
+					setLValue(_indexAccess, IRLValue{
+						*arrayType.baseType(),
+						IRLValue::Memory{memAddress, arrayType.isByteArrayOrString()}
+					});
+				}
 				break;
 			}
 			case DataLocation::CallData:
 			{
-				string indexAccessFunction = m_utils.calldataArrayIndexAccessFunction(arrayType);
+				string indexAccessFunction = m_context.uncheckedArrays() ?
+				 m_utils.calldataUncheckedArrayIndexAccessFunction(arrayType) : m_utils.calldataArrayIndexAccessFunction(arrayType);
 				string const indexAccessFunctionCall =
 					indexAccessFunction +
 					"(" +

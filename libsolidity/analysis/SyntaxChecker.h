@@ -110,6 +110,9 @@ private:
 	/// Flag that indicates whether we are inside an unchecked block.
 	bool m_uncheckedArithmetic = false;
 
+	/// Flag that indicates whether we are inside an uncheckedArray block.
+	bool m_uncheckedIndexAccess = false;
+
 	int m_inLoopDepth = 0;
 	std::optional<ContractKind> m_currentContractKind;
 

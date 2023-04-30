@@ -84,7 +84,7 @@ ASTPointer<T> ASTJsonImporter::createASTNode(Json::Value const& _node, Args&&...
 	auto n = make_shared<T>(
 		id,
 		createSourceLocation(_node),
-		forward<Args>(_args)...
+		std::forward<Args>(_args)...
 	);
 	return n;
 }
@@ -193,9 +193,11 @@ ASTPointer<ASTNode> ASTJsonImporter::convertJsonToASTNode(Json::Value const& _js
 	if (nodeType == "InlineAssembly")
 		return createInlineAssembly(_json);
 	if (nodeType == "Block")
-		return createBlock(_json, false);
+		return createBlock(_json, false, false);
 	if (nodeType == "UncheckedBlock")
-		return createBlock(_json, true);
+		return createBlock(_json, true, false);
+	if (nodeType == "UncheckedArrayBlock")
+		return createBlock(_json, false, true);
 	if (nodeType == "PlaceholderStatement")
 		return createPlaceholderStatement(_json);
 	if (nodeType == "IfStatement")
@@ -556,7 +558,7 @@ ASTPointer<FunctionDefinition> ASTJsonImporter::createFunctionDefinition(Json::V
 		createParameterList(member(_node, "parameters")),
 		modifiers,
 		createParameterList(member(_node, "returnParameters")),
-		memberAsBool(_node, "implemented") ? createBlock(member(_node, "body"), false) : nullptr
+		memberAsBool(_node, "implemented") ? createBlock(member(_node, "body"), false, false) : nullptr
 	);
 }
 
@@ -608,7 +610,7 @@ ASTPointer<ModifierDefinition> ASTJsonImporter::createModifierDefinition(Json::V
 		createParameterList(member(_node, "parameters")),
 		memberAsBool(_node, "virtual"),
 		_node["overrides"].isNull() ? nullptr : createOverrideSpecifier(member(_node, "overrides")),
-		_node["body"].isNull() ? nullptr: createBlock(member(_node, "body"), false)
+		_node["body"].isNull() ? nullptr: createBlock(member(_node, "body"), false, false)
 	);
 }
 
@@ -737,15 +739,18 @@ ASTPointer<InlineAssembly> ASTJsonImporter::createInlineAssembly(Json::Value con
 	);
 }
 
-ASTPointer<Block> ASTJsonImporter::createBlock(Json::Value const& _node, bool _unchecked)
+ASTPointer<Block> ASTJsonImporter::createBlock(Json::Value const& _node, bool _unchecked, bool _uncheckedArrays)
 {
 	std::vector<ASTPointer<Statement>> statements;
 	for (auto& stat: member(_node, "statements"))
 		statements.push_back(convertJsonToASTNode<Statement>(stat));
+	bool uncheckedArrays = _uncheckedArrays;
+
 	return createASTNode<Block>(
 		_node,
 		nullOrASTString(_node, "documentation"),
 		_unchecked,
+		uncheckedArrays,
 		statements
 	);
 }

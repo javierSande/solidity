@@ -282,7 +282,7 @@ Syntax
 * New reserved keywords: ``alias``, ``apply``, ``auto``, ``copyof``,
   ``define``, ``immutable``, ``implements``, ``macro``, ``mutable``,
   ``override``, ``partial``, ``promise``, ``reference``, ``sealed``,
-  ``sizeof``, ``supports``, ``typedef`` and ``unchecked``.
+  ``sizeof``, ``supports``, ``typedef``, ``unchecked`` and ``uncheckedArray``.
 
 .. _interoperability:
 

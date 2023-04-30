@@ -284,20 +284,30 @@ void SMTEncoder::endVisit(FunctionDefinition const&)
 
 bool SMTEncoder::visit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
-		solAssert(m_checked, "");
-		m_checked = false;
+		solAssert(m_checkedArithmetic, "");
+		m_checkedArithmetic = false;
+	}
+	if (_block.uncheckedArrays())
+	{
+		solAssert(m_checkedArrayAccess, "");
+		m_checkedArrayAccess = false;
 	}
 	return true;
 }
 
 void SMTEncoder::endVisit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
-		solAssert(!m_checked, "");
-		m_checked = true;
+		solAssert(!m_checkedArithmetic, "");
+		m_checkedArithmetic = true;
+	}
+	if (_block.uncheckedArrays())
+	{
+		solAssert(!m_checkedArrayAccess, "");
+		m_checkedArrayAccess = true;
 	}
 }
 
@@ -764,7 +774,8 @@ void SMTEncoder::initContract(ContractDefinition const& _contract)
 	createStateVariables(_contract);
 	clearIndices(m_currentContract, nullptr);
 	m_variableUsage.setCurrentContract(_contract);
-	m_checked = true;
+	m_checkedArithmetic = true;
+	m_checkedArrayAccess = true;
 }
 
 void SMTEncoder::initFunction(FunctionDefinition const& _function)
@@ -779,7 +790,8 @@ void SMTEncoder::initFunction(FunctionDefinition const& _function)
 	createLocalVariables(_function);
 	m_arrayAssignmentHappened = false;
 	clearIndices(m_currentContract, &_function);
-	m_checked = true;
+	m_checkedArithmetic = true;
+	m_checkedArrayAccess = true;
 }
 
 void SMTEncoder::visitAssert(FunctionCall const& _funCall)
@@ -1513,7 +1525,8 @@ void SMTEncoder::endVisit(IndexAccess const& _indexAccess)
 	if (_indexAccess.annotation().type->category() == Type::Category::TypeType)
 		return;
 
-	makeOutOfBoundsVerificationTarget(_indexAccess);
+	if (m_checkedArrayAccess)
+		makeOutOfBoundsVerificationTarget(_indexAccess);
 
 	if (auto const* type = dynamic_cast<FixedBytesType const*>(_indexAccess.baseExpression().annotation().type))
 	{
@@ -1719,7 +1732,8 @@ void SMTEncoder::arrayPop(FunctionCall const& _funCall)
 	auto symbArray = dynamic_pointer_cast<smt::SymbolicArrayVariable>(m_context.expression(memberAccess->expression()));
 	solAssert(symbArray, "");
 
-	makeArrayPopVerificationTarget(_funCall);
+	if (m_checkedArrayAccess)
+		makeArrayPopVerificationTarget(_funCall);
 
 	auto oldElements = symbArray->elements();
 	auto oldLength = symbArray->length();
@@ -1841,7 +1855,7 @@ pair<smtutil::Expression, smtutil::Expression> SMTEncoder::arithmeticOperation(
 		}
 	}();
 
-	if (m_checked)
+	if (m_checkedArithmetic)
 		return {valueUnbounded, valueUnbounded};
 
 	if (_op == Token::Div || _op == Token::Mod)
@@ -2547,7 +2561,7 @@ void SMTEncoder::defineExpr(Expression const& _e, smtutil::Expression _value)
 	if (!smt::isInaccessibleDynamic(*type))
 		m_context.addAssertion(expr(_e) == _value);
 
-	if (m_checked && smt::isNumber(*type))
+	if (m_checkedArithmetic && smt::isNumber(*type))
 		m_context.addAssertion(smtutil::Expression::implies(
 			currentPathConditions(),
 			smt::symbolicUnknownConstraints(expr(_e), type)

@@ -1394,10 +1394,15 @@ bool ContractCompiler::visit(PlaceholderStatement const& _placeholderStatement)
 bool ContractCompiler::visit(Block const& _block)
 {
 	m_context.pushVisitedNodes(&_block);
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
 		solAssert(m_context.arithmetic() == Arithmetic::Checked, "");
 		m_context.setArithmetic(Arithmetic::Wrapping);
+	}
+	if (_block.uncheckedArrays())
+	{
+		solAssert(m_context.arrayAccess() == ArrayAccess::Checked, "");
+		m_context.setArrayAccess(ArrayAccess::Unchecked);
 	}
 	storeStackHeight(&_block);
 	return true;
@@ -1405,10 +1410,15 @@ bool ContractCompiler::visit(Block const& _block)
 
 void ContractCompiler::endVisit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
 		solAssert(m_context.arithmetic() == Arithmetic::Wrapping, "");
 		m_context.setArithmetic(Arithmetic::Checked);
+	}
+	if (_block.uncheckedArrays())
+	{
+		solAssert(m_context.arrayAccess() == ArrayAccess::Unchecked, "");
+		m_context.setArrayAccess(ArrayAccess::Checked);
 	}
 	// Frees local variables declared in the scope of this block.
 	popScopedVariables(&_block);
