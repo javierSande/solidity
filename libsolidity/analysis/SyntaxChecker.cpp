@@ -236,7 +236,7 @@ void SyntaxChecker::endVisit(ForStatement const&)
 
 bool SyntaxChecker::visit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 	{
 		if (m_uncheckedArithmetic)
 			m_errorReporter.syntaxError(
@@ -247,13 +247,28 @@ bool SyntaxChecker::visit(Block const& _block)
 
 		m_uncheckedArithmetic = true;
 	}
+
+	if (_block.uncheckedArrays())
+	{
+		if (m_uncheckedIndexAccess)
+			m_errorReporter.syntaxError(
+				1941_error,
+				_block.location(),
+				"\"unchecked\" blocks cannot be nested."
+			);
+
+		m_uncheckedIndexAccess = true;
+	}
 	return true;
 }
 
 void SyntaxChecker::endVisit(Block const& _block)
 {
-	if (_block.unchecked())
+	if (_block.uncheckedArithmetic())
 		m_uncheckedArithmetic = false;
+
+	if (_block.uncheckedArrays())
+		m_uncheckedIndexAccess = false;
 }
 
 bool SyntaxChecker::visit(Continue const& _continueStatement)
@@ -382,6 +397,13 @@ bool SyntaxChecker::visit(PlaceholderStatement const& _placeholder)
 			2573_error,
 			_placeholder.location(),
 			"The placeholder statement \"_\" cannot be used inside an \"unchecked\" block."
+		);
+
+	if (m_uncheckedIndexAccess)
+		m_errorReporter.syntaxError(
+			2574_error,
+			_placeholder.location(),
+			"The placeholder statement \"_\" cannot be used inside an \"uncheckedArrays\" block."
 		);
 
 	m_placeholderFound = true;

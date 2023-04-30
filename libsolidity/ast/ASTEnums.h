@@ -41,6 +41,8 @@ enum class Visibility { Default, Private, Internal, Public, External };
 
 enum class Arithmetic { Checked, Wrapping };
 
+enum class ArrayAccess { Checked, Unchecked };
+
 inline std::string stateMutabilityToString(StateMutability const& _stateMutability)
 {
 	switch (_stateMutability)

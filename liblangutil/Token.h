@@ -188,6 +188,7 @@ namespace solidity::langutil
 	K(Try, "try", 0)                                                   \
 	K(Type, "type", 0)                                                 \
 	K(Unchecked, "unchecked", 0)                                       \
+	K(UncheckedArray, "uncheckedArray", 0)                             \
 	K(Unicode, "unicode", 0)                                           \
 	K(Using, "using", 0)                                               \
 	K(View, "view", 0)                                                 \

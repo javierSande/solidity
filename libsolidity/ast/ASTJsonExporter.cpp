@@ -671,9 +671,24 @@ bool ASTJsonExporter::visit(InlineAssembly const& _node)
 
 bool ASTJsonExporter::visit(Block const& _node)
 {
-	setJsonNode(_node, _node.unchecked() ? "UncheckedBlock" : "Block", {
-		make_pair("statements", toJson(_node.statements()))
-	});
+	if (_node.uncheckedArithmetic())
+	{
+		setJsonNode(_node, "UncheckedBlock", {
+			make_pair("statements", toJson(_node.statements()))
+		});
+	}
+	else if (_node.uncheckedArrays())
+	{
+		setJsonNode(_node, "UncheckedArrayBlock", {
+			make_pair("statements", toJson(_node.statements()))
+		});
+	}
+	else
+	{
+		setJsonNode(_node, "Block", {
+			make_pair("statements", toJson(_node.statements()))
+		});
+	}
 	return false;
 }
 

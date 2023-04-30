@@ -553,9 +553,9 @@ void BMC::inlineFunctionCall(FunctionCall const& _funCall)
 		// is that there we don't have `_funCall`.
 		pushCallStack({funDef, &_funCall});
 		pushPathCondition(currentPathConditions());
-		auto oldChecked = std::exchange(m_checked, true);
+		auto oldChecked = std::exchange(m_checkedArithmetic, true);
 		funDef->accept(*this);
-		m_checked = oldChecked;
+		m_checkedArithmetic = oldChecked;
 		popPathCondition();
 	}
 
@@ -609,7 +609,7 @@ pair<smtutil::Expression, smtutil::Expression> BMC::arithmeticOperation(
 
 	auto values = SMTEncoder::arithmeticOperation(_op, _left, _right, _commonType, _expression);
 
-	if (!m_checked)
+	if (!m_checkedArithmetic)
 		return values;
 
 	auto const* intType = dynamic_cast<IntegerType const*>(_commonType);

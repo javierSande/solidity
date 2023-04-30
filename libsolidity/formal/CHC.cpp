@@ -1113,7 +1113,7 @@ pair<smtutil::Expression, smtutil::Expression> CHC::arithmeticOperation(
 
 	auto values = SMTEncoder::arithmeticOperation(_op, _left, _right, _commonType, _expression);
 
-	if (!m_checked)
+	if (!m_checkedArithmetic)
 		return values;
 
 	IntegerType const* intType = nullptr;

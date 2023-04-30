@@ -126,6 +126,10 @@ public:
 	void setArithmetic(Arithmetic _value) { m_arithmetic = _value; }
 	Arithmetic arithmetic() const { return m_arithmetic; }
 
+	void setArrayAccess(ArrayAccess _value) { m_arrayAccess = _value; }
+	ArrayAccess arrayAccess() const { return m_arrayAccess; }
+	bool uncheckedArrays()  const { return m_arrayAccess == ArrayAccess::Unchecked; }
+
 	/// @returns the next function in the queue of functions that are still to be compiled
 	/// (i.e. that were referenced during compilation but where we did not yet generate code for).
 	/// Returns nullptr if the queue is empty. Does not remove the function from the queue,
@@ -370,6 +374,8 @@ private:
 	ContractDefinition const* m_mostDerivedContract = nullptr;
 	/// Whether to use checked arithmetic.
 	Arithmetic m_arithmetic = Arithmetic::Checked;
+	/// Whether to use checked array index accesses.
+	ArrayAccess m_arrayAccess = ArrayAccess::Checked;
 	/// Stack of current visited AST nodes, used for location attachment
 	std::stack<ASTNode const*> m_visitedNodes;
 	/// The runtime context if in Creation mode, this is used for generating tags that would be stored into the storage and then used at runtime.
