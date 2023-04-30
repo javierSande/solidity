@@ -26,6 +26,7 @@
 #include <libsolidity/ast/CallGraph.h>
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolidity/ast/AST_accept.h>
+#include <libsolidity/ast/ASTStringUtils.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolutil/FunctionSelector.h>
 #include <libsolutil/Keccak256.h>

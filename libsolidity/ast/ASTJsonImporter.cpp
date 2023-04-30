@@ -744,14 +744,23 @@ ASTPointer<Block> ASTJsonImporter::createBlock(Json::Value const& _node, bool _u
 	std::vector<ASTPointer<Statement>> statements;
 	for (auto& stat: member(_node, "statements"))
 		statements.push_back(convertJsonToASTNode<Statement>(stat));
-	bool uncheckedArrays = _uncheckedArrays;
+	std::vector<ASTPointer<Expression>> uncheckedArrays;
+	bool uncheckedAllArrays = _uncheckedArrays;
+
+	if (_uncheckedArrays && member(_node, "arrays") != Json::nullValue)
+	{
+		uncheckedAllArrays = false;
+		for (auto& array: member(_node, "arrays"))
+			uncheckedArrays.push_back(convertJsonToASTNode<Expression>(array));
+	}
 
 	return createASTNode<Block>(
 		_node,
 		nullOrASTString(_node, "documentation"),
 		_unchecked,
-		uncheckedArrays,
-		statements
+		uncheckedAllArrays,
+		statements,
+		uncheckedArrays
 	);
 }
 

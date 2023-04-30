@@ -25,6 +25,7 @@
 
 #include <libsolidity/ast/ASTAnnotations.h>
 #include <libsolidity/ast/ASTForward.h>
+#include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/Types.h>
 #include <libsolidity/codegen/ABIFunctions.h>
 
@@ -47,6 +48,7 @@
 #include <queue>
 #include <utility>
 #include <limits>
+#include <vector>
 
 namespace solidity::frontend
 {
@@ -69,6 +71,7 @@ public:
 		m_evmVersion(_evmVersion),
 		m_revertStrings(_revertStrings),
 		m_reservedMemory{0},
+		m_uncheckedArrays(),
 		m_runtimeContext(_runtimeContext),
 		m_abiFunctions(m_evmVersion, m_revertStrings, m_yulFunctionCollector),
 		m_yulUtilFunctions(m_evmVersion, m_revertStrings, m_yulFunctionCollector)
@@ -127,8 +130,19 @@ public:
 	Arithmetic arithmetic() const { return m_arithmetic; }
 
 	void setArrayAccess(ArrayAccess _value) { m_arrayAccess = _value; }
+	void setUncheckedArrays(std::vector<ASTPointer<Expression>> _uncheckedArrays) { m_uncheckedArrays = std::move(_uncheckedArrays); }
 	ArrayAccess arrayAccess() const { return m_arrayAccess; }
-	bool uncheckedArrays()  const { return m_arrayAccess == ArrayAccess::Unchecked; }
+	bool isArrayUnchecked(Expression const* _arrayBase)  const {
+		if (m_arrayAccess == ArrayAccess::Unchecked)
+			return true;
+
+		for (ASTPointer<Expression> const& arrayBase: m_uncheckedArrays)
+		{
+			if (_arrayBase->nodeToString() == arrayBase->nodeToString())
+				return true;
+		}
+		return false;
+	}
 
 	/// @returns the next function in the queue of functions that are still to be compiled
 	/// (i.e. that were referenced during compilation but where we did not yet generate code for).
@@ -376,6 +390,7 @@ private:
 	Arithmetic m_arithmetic = Arithmetic::Checked;
 	/// Whether to use checked array index accesses.
 	ArrayAccess m_arrayAccess = ArrayAccess::Checked;
+	std::vector<ASTPointer<Expression>> m_uncheckedArrays;
 	/// Stack of current visited AST nodes, used for location attachment
 	std::stack<ASTNode const*> m_visitedNodes;
 	/// The runtime context if in Creation mode, this is used for generating tags that would be stored into the storage and then used at runtime.

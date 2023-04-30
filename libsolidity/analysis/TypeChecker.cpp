@@ -4270,3 +4270,33 @@ bool TypeChecker::useABICoderV2() const
 	return *m_currentSourceUnit->annotation().useABICoderV2;
 
 }
+
+
+void TypeChecker::endVisit(Block const& _block)
+{
+	vector<ASTPointer<Expression>> const& arguments = _block.uncheckedArraysSet();
+	for (ASTPointer<Expression> const& argument: arguments)
+	{
+		Type const* expressionType = type(*argument);
+
+		if (expressionType->category() != Type::Category::Array)
+		{
+			m_errorReporter.typeError(9962_error, _block.location(), "Unchecked access is not possible.");
+		} else {
+			if (!dynamic_cast<Identifier const*>(argument.get()))
+			{
+				m_errorReporter.warning(
+				9963_error,
+				argument->location(),
+				"The array accesses performed over a base listed here will not perform index out of bounds checks. "
+				"Comparison between array bases is literal. Only in those accesses with the same literal base "
+				"the uncehckedArray will take effect."
+			);
+			}
+			ArrayType const& actualType = dynamic_cast<ArrayType const&>(*expressionType);
+			if (actualType.isByteArrayOrString())
+				m_errorReporter.typeError(9964_error, _block.location(), "Unchecked access for string or byte arrays is not possible.");
+
+		}
+	}
+}
