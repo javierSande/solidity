@@ -77,6 +77,7 @@ static string const g_strModelCheckerTargets = "model-checker-targets";
 static string const g_strModelCheckerTimeout = "model-checker-timeout";
 static string const g_strNone = "none";
 static string const g_strNoOptimizeYul = "no-optimize-yul";
+static string const g_strOptimizeArrays = "optimize-arrays";
 static string const g_strOptimize = "optimize";
 static string const g_strOptimizeRuns = "optimize-runs";
 static string const g_strOptimizeYul = "optimize-yul";
@@ -248,6 +249,7 @@ bool CommandLineOptions::operator==(CommandLineOptions const& _other) const noex
 		metadata.hash == _other.metadata.hash &&
 		metadata.literalSources == _other.metadata.literalSources &&
 		optimizer.enabled == _other.optimizer.enabled &&
+		optimizer.arrays == _other.optimizer.arrays &&
 		optimizer.expectedExecutionsPerDeployment == _other.optimizer.expectedExecutionsPerDeployment &&
 		optimizer.noOptimizeYul == _other.optimizer.noOptimizeYul &&
 		optimizer.yulSteps == _other.optimizer.yulSteps &&
@@ -648,19 +650,19 @@ General Information)").c_str(),
 		(
 			g_strAssemble.c_str(),
 			("Switch to assembly mode, ignoring all options except "
-			"--" + g_strMachine + ", --" + g_strYulDialect + ", --" + g_strOptimize + " and --" + g_strYulOptimizations + " "
+			"--" + g_strMachine + ", --" + g_strYulDialect + ", --" + g_strOptimize + ", --" + g_strOptimizeArrays + " and --" + g_strYulOptimizations + " "
 			"and assumes input is assembly.").c_str()
 		)
 		(
 			g_strYul.c_str(),
 			("Switch to Yul mode, ignoring all options except "
-			"--" + g_strMachine + ", --" + g_strYulDialect + ", --" + g_strOptimize + " and --" + g_strYulOptimizations + " "
+			"--" + g_strMachine + ", --" + g_strYulDialect + ", --" + g_strOptimize + ", --" + g_strOptimizeArrays  + " and --" + g_strYulOptimizations + " "
 			"and assumes input is Yul.").c_str()
 		)
 		(
 			g_strStrictAssembly.c_str(),
 			("Switch to strict assembly mode, ignoring all options except "
-			"--" + g_strMachine + ", --" + g_strYulDialect + ", --" + g_strOptimize + " and --" + g_strYulOptimizations + " "
+			"--" + g_strMachine + ", --" + g_strYulDialect + ", --" + g_strOptimize + ", --" + g_strOptimizeArrays  + " and --" + g_strYulOptimizations + " "
 			"and assumes input is strict assembly.").c_str()
 		)
 		(
@@ -804,6 +806,10 @@ General Information)").c_str(),
 		(
 			g_strNoOptimizeYul.c_str(),
 			"Disable Yul optimizer in Solidity."
+		)
+				(
+			g_strOptimizeArrays.c_str(),
+			"Enable array access optimizer in Solidity. Same effect as --optimize  and --via-ir."
 		)
 		(
 			g_strYulOptimizations.c_str(),
@@ -1012,7 +1018,7 @@ void CommandLineParser::processArgs()
 				"Option --" + g_strOptimizeRuns + " is only valid in compiler and assembler modes."
 			);
 
-		for (string const& option: {g_strOptimize, g_strNoOptimizeYul, g_strOptimizeYul, g_strYulOptimizations})
+		for (string const& option: {g_strOptimize, g_strOptimizeArrays, g_strNoOptimizeYul, g_strOptimizeYul, g_strYulOptimizations})
 			if (m_args.count(option) > 0)
 				solThrow(
 					CommandLineValidationError,
@@ -1145,8 +1151,9 @@ void CommandLineParser::processArgs()
 		m_options.output.eofVersion = 1;
 	}
 
-	m_options.optimizer.enabled = (m_args.count(g_strOptimize) > 0);
-	m_options.optimizer.noOptimizeYul = (m_args.count(g_strNoOptimizeYul) > 0);
+	m_options.optimizer.enabled = (m_args.count(g_strOptimize) > 0) || (m_args.count(g_strOptimizeArrays) > 0);
+	m_options.optimizer.arrays = (m_args.count(g_strOptimizeArrays) > 0);
+	m_options.optimizer.noOptimizeYul = (m_args.count(g_strNoOptimizeYul) > 0) && (m_args.count(g_strOptimizeArrays) == 0);
 	if (!m_args[g_strOptimizeRuns].defaulted())
 		m_options.optimizer.expectedExecutionsPerDeployment = m_args.at(g_strOptimizeRuns).as<unsigned>();
 
@@ -1349,7 +1356,7 @@ void CommandLineParser::processArgs()
 		m_args.count(g_strModelCheckerSolvers) ||
 		m_args.count(g_strModelCheckerTargets) ||
 		m_args.count(g_strModelCheckerTimeout);
-	m_options.output.viaIR = (m_args.count(g_strExperimentalViaIR) > 0 || m_args.count(g_strViaIR) > 0);
+	m_options.output.viaIR = (m_args.count(g_strExperimentalViaIR) > 0 || m_args.count(g_strViaIR) > 0 || m_args.count(g_strOptimizeArrays) > 0);
 	if (m_options.input.mode == InputMode::Compiler)
 		m_options.input.errorRecovery = (m_args.count(g_strErrorRecovery) > 0);
 

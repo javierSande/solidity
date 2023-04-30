@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <libsolidity/codegen/ir/optimiser/ArrayLoopOptimiser.h>
+
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolidity/codegen/ir/IRLValue.h>
 #include <libsolidity/codegen/ir/IRVariable.h>
@@ -32,6 +34,7 @@ namespace solidity::frontend
 
 class IRGenerationContext;
 class YulUtilFunctions;
+class ArrayLoopOptimiser;
 
 /**
  * Base class for the statement generator.
@@ -46,8 +49,8 @@ public:
 
 	virtual std::string code() const;
 	std::ostringstream& appendCode(bool _addLocationComment = true);
-protected:
 	void setLocation(ASTNode const& _node);
+protected:
 	langutil::SourceLocation m_currentLocation = {};
 	langutil::SourceLocation m_lastLocation = {};
 	IRGenerationContext& m_context;
@@ -69,7 +72,8 @@ public:
 	):
 		IRGeneratorForStatementsBase(_context),
 		m_placeholderCallback(std::move(_placeholderCallback)),
-		m_utils(_utils)
+		m_utils(_utils),
+		m_arrayOptimiser()
 	{}
 
 	std::string code() const override;
@@ -91,6 +95,11 @@ public:
 		bool _declare = true;
 		declareAssign(_var, _value, _declare);
 	}
+
+	/// @returns an output stream that can be used to define @a _var using a function call or
+	/// single stack slot expression.
+	std::ostream& define(IRVariable const& _var);
+
 
 	/// Defines @a _var using the value of @a _value while performing type conversions, if required.
 	/// It also cleans the value of the variable.
@@ -125,6 +134,7 @@ public:
 	bool visit(MemberAccess const& _memberAccess) override;
 	void endVisit(MemberAccess const& _memberAccess) override;
 	bool visit(InlineAssembly const& _inlineAsm) override;
+	bool visit(IndexAccess const& _indexAccess) override;
 	void endVisit(IndexAccess const& _indexAccess) override;
 	void endVisit(IndexRangeAccess const& _indexRangeAccess) override;
 	void endVisit(Identifier const& _identifier) override;
@@ -132,6 +142,17 @@ public:
 
 	bool visit(TryStatement const& _tryStatement) override;
 	bool visit(TryCatchClause const& _tryCatchClause) override;
+
+	/// @returns a Yul expression representing the current value of @a _expression,
+	/// converted to type @a _to if it does not yet have that type.
+	/// It also cleans the value, in case it already has type @a _to.
+	std::string expressionAsCleanedType(Expression const& _expression, Type const& _to);
+
+
+	/// @returns a Yul expression representing the current value of @a _expression,
+	/// converted to type @a _to if it does not yet have that type.
+	std::string expressionAsType(Expression const& _expression, Type const& _to);
+
 
 private:
 	/// Handles all catch cases of a try statement, except the success-case.
@@ -180,19 +201,6 @@ private:
 	/// Generates the required conversion code and @returns an IRVariable referring to the value of @a _variable
 	/// It also cleans the value of the variable.
 	IRVariable convertAndCleanup(IRVariable const& _from, Type const& _to);
-
-	/// @returns a Yul expression representing the current value of @a _expression,
-	/// converted to type @a _to if it does not yet have that type.
-	std::string expressionAsType(Expression const& _expression, Type const& _to);
-
-	/// @returns a Yul expression representing the current value of @a _expression,
-	/// converted to type @a _to if it does not yet have that type.
-	/// It also cleans the value, in case it already has type @a _to.
-	std::string expressionAsCleanedType(Expression const& _expression, Type const& _to);
-
-	/// @returns an output stream that can be used to define @a _var using a function call or
-	/// single stack slot expression.
-	std::ostream& define(IRVariable const& _var);
 
 	/// Assigns @a _var to the value of @a _value while performing type conversions, if required.
 	void assign(IRVariable const& _var, IRVariable const& _value) { declareAssign(_var, _value, false); }
@@ -245,6 +253,8 @@ private:
 	std::function<std::string()> m_placeholderCallback;
 	YulUtilFunctions& m_utils;
 	std::optional<IRLValue> m_currentLValue;
+
+	ArrayLoopOptimiser m_arrayOptimiser;
 };
 
 }

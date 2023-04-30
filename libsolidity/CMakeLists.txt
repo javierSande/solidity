@@ -101,6 +101,12 @@ set(sources
 	codegen/ir/IRLValue.h
 	codegen/ir/IRVariable.cpp
 	codegen/ir/IRVariable.h
+	codegen/ir/optimiser/ArrayLoopOptimiser.cpp
+	codegen/ir/optimiser/ArrayLoopOptimiser.h
+	codegen/ir/optimiser/ArrayLoopOptimizedAccessGenerator.cpp
+	codegen/ir/optimiser/ArrayLoopOptimizedAccessGenerator.h
+	codegen/ir/optimiser/ViewArrayChecker.cpp
+	codegen/ir/optimiser/ViewArrayChecker.h
 	formal/ArraySlicePredicate.cpp
 	formal/ArraySlicePredicate.h
 	formal/BMC.cpp

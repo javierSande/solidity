@@ -224,6 +224,7 @@ struct CommandLineOptions
 	struct
 	{
 		bool enabled = false;
+		bool arrays = false;
 		std::optional<unsigned> expectedExecutionsPerDeployment;
 		bool noOptimizeYul = false;
 		std::optional<std::string> yulSteps;

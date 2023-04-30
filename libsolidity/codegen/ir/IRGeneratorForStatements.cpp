@@ -25,6 +25,7 @@
 #include <libsolidity/codegen/ir/IRGenerationContext.h>
 #include <libsolidity/codegen/ir/IRLValue.h>
 #include <libsolidity/codegen/ir/IRVariable.h>
+#include <libsolidity/codegen/ir/optimiser/ArrayLoopOptimizedAccessGenerator.h>
 #include <libsolidity/codegen/YulUtilFunctions.h>
 #include <libsolidity/codegen/ABIFunctions.h>
 #include <libsolidity/codegen/CompilerUtils.h>
@@ -614,6 +615,14 @@ void IRGeneratorForStatements::endVisit(PlaceholderStatement const& _placeholder
 bool IRGeneratorForStatements::visit(ForStatement const& _forStatement)
 {
 	setLocation(_forStatement);
+
+	if (m_arrayOptimiser.startOptimization(_forStatement))
+	{
+		ArrayLoopOptimizedAccessGenerator arrayGenerator(m_arrayOptimiser.accessedArraysInScope());
+		m_arrayOptimiser.setAccessedArrayLengths(arrayGenerator.generateArrayLengths(*this, m_context, m_utils));
+		m_arrayOptimiser.setAccessedArraySlots(arrayGenerator.getArraySlotMap());
+	}
+
 	generateLoop(
 		_forStatement.body(),
 		_forStatement.condition(),
@@ -621,12 +630,22 @@ bool IRGeneratorForStatements::visit(ForStatement const& _forStatement)
 		_forStatement.loopExpression()
 	);
 
+	m_arrayOptimiser.endOptimization();
+
 	return false;
 }
 
 bool IRGeneratorForStatements::visit(WhileStatement const& _whileStatement)
 {
 	setLocation(_whileStatement);
+
+	if (m_arrayOptimiser.startOptimization(_whileStatement))
+	{
+		ArrayLoopOptimizedAccessGenerator arrayGenerator(m_arrayOptimiser.accessedArraysInScope());
+		m_arrayOptimiser.setAccessedArrayLengths(arrayGenerator.generateArrayLengths(*this, m_context, m_utils));
+		m_arrayOptimiser.setAccessedArraySlots(arrayGenerator.getArraySlotMap());
+	}
+
 	generateLoop(
 		_whileStatement.body(),
 		&_whileStatement.condition(),
@@ -634,6 +653,10 @@ bool IRGeneratorForStatements::visit(WhileStatement const& _whileStatement)
 		nullptr,
 		_whileStatement.isDoWhile()
 	);
+
+
+	m_arrayOptimiser.endOptimization();
+
 
 	return false;
 }
@@ -1689,6 +1712,15 @@ void IRGeneratorForStatements::endVisit(FunctionCallOptions const& _options)
 
 bool IRGeneratorForStatements::visit(MemberAccess const& _memberAccess)
 {
+	// Check if the array length access is optimizable. If so, the expression does not need to
+	// be visted. The expression will be replaced by the local variable containing its length.
+	if (dynamic_cast<ArrayType const*>(_memberAccess.expression().annotation().type) &&
+		_memberAccess.memberName() == "length" &&
+		m_arrayOptimiser.isOptimizable(_memberAccess.expression())
+	) {
+		return false;
+	}
+
 	// A shortcut for <address>.code.length. We skip visiting <address>.code and directly visit
 	// <address>. The actual code is generated in endVisit.
 	if (
@@ -1716,6 +1748,14 @@ void IRGeneratorForStatements::endVisit(MemberAccess const& _memberAccess)
 	ASTString const& member = _memberAccess.memberName();
 	auto memberFunctionType = dynamic_cast<FunctionType const*>(_memberAccess.annotation().type);
 	Type::Category objectCategory = _memberAccess.expression().annotation().type->category();
+
+	if (dynamic_cast<ArrayType const*>(_memberAccess.expression().annotation().type) &&
+		_memberAccess.memberName() == "length" &&
+		m_arrayOptimiser.isOptimizable(_memberAccess.expression())
+	) {
+		define(_memberAccess) << m_arrayOptimiser.getLengthVariable(_memberAccess.expression());
+		return;
+	}
 
 	if (memberFunctionType && memberFunctionType->hasBoundFirstArgument())
 	{
@@ -2229,6 +2269,17 @@ bool IRGeneratorForStatements::visit(InlineAssembly const& _inlineAsm)
 	return false;
 }
 
+bool IRGeneratorForStatements::visit(IndexAccess const& _indexAccess)
+{
+	if (m_arrayOptimiser.isOptimizable(_indexAccess.baseExpression()))
+	{
+		if (_indexAccess.indexExpression())
+			_indexAccess.indexExpression()->accept(*this);
+		return false;
+	}
+
+	return true;
+}
 
 void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 {
@@ -2275,16 +2326,32 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 			{
 				string slot = m_context.newYulVariable();
 				string offset = m_context.newYulVariable();
+				Expression const& baseExpression = _indexAccess.baseExpression();
 
-				appendCode() << Whiskers(R"(
+				if (m_arrayOptimiser.isOptimizable(baseExpression))
+				{
+					appendCode() << Whiskers(R"(
+					let <slot>, <offset> := <indexFunc>(<array>, <index>, <length>)
+					)")
+					("slot", slot)
+					("offset", offset)
+					("indexFunc", m_utils.storageArrayIndexAccessWithLengthFunction(arrayType))
+					("array", m_arrayOptimiser.getSlotVariable(baseExpression))
+					("index", IRVariable(*_indexAccess.indexExpression()).name())
+					("length", m_arrayOptimiser.getLengthVariable(baseExpression))
+					.render();
+				}
+				else{
+					appendCode() << Whiskers(R"(
 					let <slot>, <offset> := <indexFunc>(<array>, <index>)
-				)")
-				("slot", slot)
-				("offset", offset)
-				("indexFunc", m_utils.storageArrayIndexAccessFunction(arrayType))
-				("array", IRVariable(_indexAccess.baseExpression()).part("slot").name())
-				("index", IRVariable(*_indexAccess.indexExpression()).name())
-				.render();
+					)")
+					("slot", slot)
+					("offset", offset)
+					("indexFunc", m_utils.storageArrayIndexAccessFunction(arrayType))
+					("array", IRVariable(baseExpression).part("slot").name())
+					("index", IRVariable(*_indexAccess.indexExpression()).name())
+					.render();
+				}
 
 				setLValue(_indexAccess, IRLValue{
 					*_indexAccess.annotation().type,

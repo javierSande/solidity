@@ -39,6 +39,25 @@ enum class StateMutability { Pure, View, NonPayable, Payable };
 /// Visibility ordered from restricted to unrestricted.
 enum class Visibility { Default, Private, Internal, Public, External };
 
+inline std::string visibilityToString(Visibility const& _visibility)
+{
+	switch (_visibility)
+	{
+	case Visibility::Default:
+		return "default";
+	case Visibility::Private:
+		return "private";
+	case Visibility::Internal:
+		return "internal";
+	case Visibility::Public:
+		return "public";
+	case Visibility::External:
+		return "external";
+	default:
+		solAssert(false, "Unknown visibility.");
+	}
+}
+
 enum class Arithmetic { Checked, Wrapping };
 
 inline std::string stateMutabilityToString(StateMutability const& _stateMutability)

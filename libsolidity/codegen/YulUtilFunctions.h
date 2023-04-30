@@ -284,6 +284,11 @@ public:
 	/// signature: (array, index) -> slot, offset
 	std::string storageArrayIndexAccessFunction(ArrayType const& _type);
 
+	/// @returns the name of a function that returns the slot and offset for the
+	/// given array, its length and index
+	/// signature: (array, index, arrayLength) -> slot, offset
+	std::string storageArrayIndexAccessWithLengthFunction(ArrayType const& _type);
+
 	/// @returns the name of a function that returns the memory address for the
 	/// given array base ref and index.
 	/// Causes invalid opcode on out of range access.

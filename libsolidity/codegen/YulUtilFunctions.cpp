@@ -2331,6 +2331,49 @@ string YulUtilFunctions::storageArrayIndexAccessFunction(ArrayType const& _type)
 	});
 }
 
+string YulUtilFunctions::storageArrayIndexAccessWithLengthFunction(ArrayType const& _type)
+{
+	string functionName = "storage_array_index_access_with_length_" + _type.identifier();
+	return m_functionCollector.createFunction(functionName, [&]() {
+		return Whiskers(R"(
+			function <functionName>(array, index, arrayLength) -> slot, offset {
+				if iszero(lt(index, arrayLength)) { <panic>() }
+
+				<?multipleItemsPerSlot>
+					<?isBytesArray>
+						switch lt(arrayLength, 0x20)
+						case 0 {
+							slot, offset := <indexAccessNoChecks>(array, index)
+						}
+						default {
+							offset := sub(31, mod(index, 0x20))
+							slot := array
+						}
+					<!isBytesArray>
+						let dataArea := <dataAreaFunc>(array)
+						slot := add(dataArea, div(index, <itemsPerSlot>))
+						offset := mul(mod(index, <itemsPerSlot>), <storageBytes>)
+					</isBytesArray>
+				<!multipleItemsPerSlot>
+					let dataArea := <dataAreaFunc>(array)
+					slot := add(dataArea, mul(index, <storageSize>))
+					offset := 0
+				</multipleItemsPerSlot>
+			}
+		)")
+		("functionName", functionName)
+		("panic", panicFunction(PanicCode::ArrayOutOfBounds))
+		("dataAreaFunc", arrayDataAreaFunction(_type))
+		("indexAccessNoChecks", longByteArrayStorageIndexAccessNoCheckFunction())
+		("multipleItemsPerSlot", _type.baseType()->storageBytes() <= 16)
+		("isBytesArray", _type.isByteArrayOrString())
+		("storageSize", _type.baseType()->storageSize().str())
+		("storageBytes", toString(_type.baseType()->storageBytes()))
+		("itemsPerSlot", to_string(32 / _type.baseType()->storageBytes()))
+		.render();
+	});
+}
+
 string YulUtilFunctions::memoryArrayIndexAccessFunction(ArrayType const& _type)
 {
 	string functionName = "memory_array_index_access_" + _type.identifier();
